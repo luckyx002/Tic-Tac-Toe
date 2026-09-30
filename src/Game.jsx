@@ -135,16 +135,36 @@ function Game() {
   };
 
   const computerMove = async (currentBoard) => {
-    const move =
-      difficulty === "easy"
-        ? getRandomMove(currentBoard)
-        : difficulty === "medium"
-          ? getMediumMove(currentBoard)
-          : getBestMove(currentBoard);
-
-    if (move === undefined || move === -1) return;
-
     setIsAiThinking(true);
+
+    let move;
+    if (difficulty === "easy") {
+      move = getRandomMove(currentBoard);
+    } else if (difficulty === "medium") {
+      try {
+        const response = await fetch("/api/ai-move", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ board: currentBoard }),
+        });
+
+        if (!response.ok) throw new Error("AI move request failed");
+
+        const { move: aiMove } = await response.json();
+        move = getEmptyCells(currentBoard).includes(aiMove)
+          ? aiMove
+          : getMediumMove(currentBoard);
+      } catch {
+        move = getMediumMove(currentBoard);
+      }
+    } else {
+      move = getBestMove(currentBoard);
+    }
+
+    if (move === undefined || move === -1) {
+      setIsAiThinking(false);
+      return;
+    }
 
     const newBoard = [...currentBoard];
     newBoard[move] = "O";
